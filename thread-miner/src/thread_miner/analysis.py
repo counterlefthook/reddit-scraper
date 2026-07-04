@@ -39,6 +39,21 @@ def parse_json_object(text: str) -> dict:
     return json.loads(text[start:end + 1])
 
 
+def system_with_schema(system: str, schema_cls) -> str:
+    """Append the concrete JSON Schema to a prompt.
+
+    The prompts name their schema ("...matching the ChunkExtraction schema")
+    but the model has no way to know the field names unless we show them;
+    without this the model invents keys and every response fails validation.
+    """
+    schema = json.dumps(schema_cls.model_json_schema(), indent=2, sort_keys=True)
+    return (
+        f"{system}\n"
+        "Your JSON object MUST validate against this JSON Schema, using exactly "
+        f"these field names and nesting:\n{schema}"
+    )
+
+
 class LLMClient:
     def __init__(self, api_key: str, cfg: dict) -> None:
         self.client = anthropic.Anthropic(api_key=api_key)
@@ -57,6 +72,7 @@ class LLMClient:
         """Sync call with SCHEMA_RETRY validation retries. None if all fail."""
         attempts = 1 + self.schema_retry
         message = user
+        system = system_with_schema(system, schema_cls)
         for attempt in range(attempts):
             try:
                 text = self._call(model, system, message)
@@ -80,7 +96,7 @@ class LLMClient:
                 f"error, fix it and respond with only the corrected JSON object:\n{exc}"
             )
             try:
-                fixed = self._call(model, system, retry_user)
+                fixed = self._call(model, system_with_schema(system, schema_cls), retry_user)
                 return schema_cls.model_validate(parse_json_object(fixed))
             except (ValidationError, ValueError, json.JSONDecodeError,
                     anthropic.AnthropicError) as exc2:
@@ -249,7 +265,8 @@ def run_analysis(conn, cfg, env, batch_id: str, resume_run_id: str | None = None
 
     if stage == "created":
         if use_batch:
-            reqs = [(cid, extraction_model, CHUNK_EXTRACTION_PROMPT, chunk)
+            chunk_system = system_with_schema(CHUNK_EXTRACTION_PROMPT, ChunkExtraction)
+            reqs = [(cid, extraction_model, chunk_system, chunk)
                     for cid, (_, chunk) in sorted(chunk_map.items())]
             anthropic_batch = llm.submit_batch(reqs)
             db.set_run_stage(conn, run_id, "chunks_submitted", anthropic_batch)
@@ -282,7 +299,8 @@ def run_analysis(conn, cfg, env, batch_id: str, resume_run_id: str | None = None
             for p in posts
         }
         if use_batch:
-            reqs = [(f"synth|{fn}", synthesis_model, THREAD_SYNTHESIS_PROMPT, msg)
+            synth_system = system_with_schema(THREAD_SYNTHESIS_PROMPT, ThreadSynthesis)
+            reqs = [(f"synth|{fn}", synthesis_model, synth_system, msg)
                     for fn, msg in sorted(synth_msgs.items())]
             anthropic_batch = llm.submit_batch(reqs)
             db.set_run_stage(conn, run_id, "synthesis_submitted", anthropic_batch)
