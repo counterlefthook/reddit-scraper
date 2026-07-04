@@ -1,0 +1,37 @@
+{
+  "json": {
+    "errors": [],
+    "data": {
+      "things": [
+        {
+          "kind": "t1",
+          "data": {
+            "id": "c4",
+            "parent_id": "t1_c1",
+            "author": "late_replier",
+            "body": "Also: turn off notifications while working.",
+            "score": 40,
+            "created_utc": 1735704000.0,
+            "is_submitter": false,
+            "stickied": false,
+            "permalink": "/r/AskReddit/comments/1abcde/comment/c4/"
+          }
+        },
+        {
+          "kind": "t1",
+          "data": {
+            "id": "c5",
+            "parent_id": "t1_c4",
+            "author": "another_user",
+            "body": "Airplane mode is my best friend.",
+            "score": 12,
+            "created_utc": 1735707600.0,
+            "is_submitter": false,
+            "stickied": false,
+            "permalink": "/r/AskReddit/comments/1abcde/comment/c5/"
+          }
+        }
+      ]
+    }
+  }
+}

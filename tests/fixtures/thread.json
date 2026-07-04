@@ -1,0 +1,92 @@
+[
+  {
+    "kind": "Listing",
+    "data": {
+      "children": [
+        {
+          "kind": "t3",
+          "data": {
+            "id": "1abcde",
+            "subreddit": "AskReddit",
+            "title": "What is the best productivity tip you know?",
+            "author": "curious_op",
+            "score": 4213,
+            "upvote_ratio": 0.94,
+            "num_comments": 5,
+            "created_utc": 1735689600.0,
+            "selftext": "Looking for practical advice.",
+            "link_flair_text": "Serious",
+            "is_video": false,
+            "over_18": false,
+            "permalink": "/r/AskReddit/comments/1abcde/what_is_the_best_productivity_tip_you_know/"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "kind": "Listing",
+    "data": {
+      "children": [
+        {
+          "kind": "t1",
+          "data": {
+            "id": "c1",
+            "parent_id": "t3_1abcde",
+            "author": "helpful_user",
+            "body": "Write down three tasks the night before.",
+            "score": 812,
+            "created_utc": 1735693200.0,
+            "is_submitter": false,
+            "stickied": false,
+            "permalink": "/r/AskReddit/comments/1abcde/comment/c1/",
+            "replies": {
+              "kind": "Listing",
+              "data": {
+                "children": [
+                  {
+                    "kind": "t1",
+                    "data": {
+                      "id": "c2",
+                      "parent_id": "t1_c1",
+                      "author": "curious_op",
+                      "body": "This changed my mornings, thanks!",
+                      "score": 95,
+                      "created_utc": 1735696800.0,
+                      "is_submitter": true,
+                      "stickied": false,
+                      "permalink": "/r/AskReddit/comments/1abcde/comment/c2/",
+                      "replies": ""
+                    }
+                  },
+                  {
+                    "kind": "more",
+                    "data": {
+                      "count": 2,
+                      "children": ["c4", "c5"]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "kind": "t1",
+          "data": {
+            "id": "c3",
+            "parent_id": "t3_1abcde",
+            "author": null,
+            "body": "[removed]",
+            "score": 1,
+            "created_utc": 1735700400.0,
+            "is_submitter": false,
+            "stickied": false,
+            "permalink": "/r/AskReddit/comments/1abcde/comment/c3/",
+            "replies": ""
+          }
+        }
+      ]
+    }
+  }
+]
