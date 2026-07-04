@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thread Miner Report {{ run.run_id[:8] }}</title>
+<style>
+  :root {
+    --bg: #0f1117; --panel: #181b24; --text: #e6e6e6; --muted: #9aa0ae;
+    --accent: #8b5cf6; --pos: #34d399; --neg: #f87171; --neu: #6b7280; --mix: #fbbf24;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--text); margin: 0; padding: 2rem 1rem 4rem;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.55;
+  }
+  main { max-width: 1080px; margin: 0 auto; }
+  h1, h2, h3 { line-height: 1.25; }
+  h1 { font-size: 1.7rem; } h2 { font-size: 1.3rem; margin-top: 2.5rem;
+    border-bottom: 1px solid #2a2e3a; padding-bottom: .4rem; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .panel { background: var(--panel); border: 1px solid #262a36; border-radius: 10px;
+    padding: 1.1rem 1.4rem; margin: 1rem 0; }
+  .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: .8rem; }
+  .kv .stat { background: #12141c; border-radius: 8px; padding: .7rem .9rem; }
+  .stat .n { font-size: 1.4rem; font-weight: 700; color: var(--accent); }
+  .stat .l { font-size: .8rem; color: var(--muted); }
+  .muted { color: var(--muted); font-size: .9rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  th, td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid #262a36;
+    vertical-align: top; }
+  th { cursor: pointer; color: var(--muted); user-select: none; white-space: nowrap; }
+  th:hover { color: var(--text); }
+  .bar { display: flex; height: 12px; border-radius: 6px; overflow: hidden;
+    background: #12141c; margin: .4rem 0 .2rem; }
+  .bar div { height: 100%; }
+  .seg-positive { background: var(--pos); } .seg-negative { background: var(--neg); }
+  .seg-neutral { background: var(--neu); } .seg-mixed { background: var(--mix); }
+  .legend { font-size: .78rem; color: var(--muted); }
+  .tag { display: inline-block; background: #262a36; color: var(--text);
+    border-radius: 999px; padding: .1rem .6rem; font-size: .78rem; margin-right: .3rem; }
+  .cids a { font-size: .78rem; margin-right: .35rem; }
+  .idx { font-weight: 700; }
+  .idx.pos { color: var(--pos); } .idx.neg { color: var(--neg); }
+  ul { margin: .4rem 0; padding-left: 1.2rem; }
+  .angle { border-left: 3px solid var(--accent); padding-left: .8rem; margin: .8rem 0; }
+  code { background: #12141c; border-radius: 4px; padding: 0 .3rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Thread Miner: Discussion Research Report</h1>
+  <p class="muted">Run <code>{{ run.run_id }}</code> · batch <code>{{ run.batch_id }}</code>
+    · source file <b>{{ batch.source_filename }}</b> · created {{ run.created_at }}</p>
+
+  <!-- 1. Run summary -->
+  <h2>Run summary</h2>
+  <div class="panel kv">
+    <div class="stat"><div class="n">{{ thread_count }}</div><div class="l">threads analyzed</div></div>
+    <div class="stat"><div class="n">{{ total_comments }}</div><div class="l">comments fetched</div></div>
+    <div class="stat"><div class="n">{{ batch.row_count }}</div><div class="l">spreadsheet rows</div></div>
+    <div class="stat"><div class="n">{{ truncated_count }}</div><div class="l">threads truncated at fetch budget</div></div>
+    {% for tier, n in tier_counts.items() %}
+    <div class="stat"><div class="n">{{ n }}</div><div class="l">fetched via Tier {{ tier }}</div></div>
+    {% endfor %}
+  </div>
+  <p class="muted">Tags:
+    {% for tag, fns in tag_groups.items() %}<span class="tag">{{ tag }} ({{ fns|length }})</span>{% endfor %}
+  </p>
+
+  {% if rollup %}
+  <!-- 2. Executive summary -->
+  <h2>Executive summary</h2>
+  <div class="panel"><p>{{ rollup.executive_summary }}</p></div>
+  <h2>Content opportunity brief</h2>
+  <div class="panel"><p style="white-space: pre-line">{{ rollup.content_opportunity_brief }}</p></div>
+
+  <!-- 3. Cross-thread themes -->
+  <h2>Cross-thread themes</h2>
+  {% for theme in rollup.cross_thread_themes %}
+  <div class="panel">
+    <h3>{{ theme.name }}</h3>
+    <p>{{ theme.description }}</p>
+    <p class="muted">Appears in: {% for fn in theme.post_fullnames %}<code>{{ fn }}</code> {% endfor %}</p>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  <!-- 4. Question bank -->
+  <h2>Question bank</h2>
+  <p class="muted">Rank score = member count x (1 + log10(1 + total member score)),
+    computed by the pipeline. Click headers to sort.</p>
+  <div class="panel" style="overflow-x:auto">
+    <table id="qbank">
+      <thead><tr>
+        <th data-k="0">Canonical question</th>
+        <th data-k="1" data-num>Rank</th>
+        <th data-k="2" data-num>Members</th>
+        <th data-k="3">Tags</th>
+        <th data-k="4">Thread</th>
+      </tr></thead>
+      <tbody>
+      {% for q in question_bank %}
+        <tr>
+          <td>{{ q.canonical_question }}
+            <div class="cids">{% for link in q.member_links %}<a href="{{ link }}">[{{ loop.index }}]</a>{% endfor %}</div>
+          </td>
+          <td>{{ q.rank_score }}</td>
+          <td>{{ q.member_count }}</td>
+          <td>{{ q.tags }}</td>
+          <td><a href="{{ q.permalinks }}">{{ q.post_title|truncate(60) }}</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 5. Per-thread cards -->
+  <h2>Threads</h2>
+  {% for card in cards %}
+  <div class="panel">
+    <h3><a href="{{ card.url }}">{{ card.post.title }}</a></h3>
+    <p class="muted">r/{{ card.post.subreddit }} · post score {{ card.post.score }}
+      · {{ card.engagement.num_comments_fetched }} comments fetched
+      ({{ card.engagement.num_comments_reported }} reported)
+      · {{ card.engagement.unique_authors }} unique authors
+      {% if card.engagement.fetch_truncated %}· <b>truncated at fetch budget</b>{% endif %}
+      · {% for tag in card.tags %}<span class="tag">{{ tag }}</span>{% endfor %}
+    </p>
+
+    {% if card.sentiment_index is not none %}
+    <p>Weighted sentiment index:
+      <span class="idx {{ 'pos' if card.sentiment_index > 0 else ('neg' if card.sentiment_index < 0 else '') }}">
+        {{ card.sentiment_index }}</span></p>
+    <div class="bar">
+      {% for label in ['positive','negative','neutral','mixed'] %}
+      <div class="seg-{{ label }}" style="width: {{ card.distribution[label] }}%"
+           title="{{ label }} {{ card.distribution[label] }}%"></div>
+      {% endfor %}
+    </div>
+    <p class="legend">
+      {% for label in ['positive','negative','neutral','mixed'] %}
+      {{ label }} {{ card.distribution[label] }}%{% if not loop.last %} · {% endif %}
+      {% endfor %}
+    </p>
+    {% endif %}
+
+    {% if card.synthesis %}
+    <p>{{ card.synthesis.summary }}</p>
+
+    <h4>Themes</h4>
+    <ul>
+      {% for theme in card.synthesis.themes %}
+      <li><b>{{ theme.name }}</b>: {{ theme.description }}
+        <span class="cids">{% for cid in theme.supporting_comment_ids %}<a href="{{ card.post.permalink|comment_anchor(cid) }}">[{{ loop.index }}]</a>{% endfor %}</span>
+      </li>
+      {% endfor %}
+    </ul>
+
+    <h4>Content angles</h4>
+    {% for angle in card.synthesis.content_angles %}
+    <div class="angle">
+      <b>{{ angle.title }}</b>
+      <p class="muted" style="margin:.2rem 0">{{ angle.rationale }}
+        <span class="cids">{% for cid in angle.supporting_comment_ids %}<a href="{{ card.post.permalink|comment_anchor(cid) }}">[{{ loop.index }}]</a>{% endfor %}</span>
+      </p>
+    </div>
+    {% endfor %}
+
+    <h4>Top questions</h4>
+    <ul>
+      {% for q in card.synthesis.question_clusters[:8] %}
+      <li>{{ q.canonical_question }}
+        <span class="cids">{% for cid in q.member_comment_ids %}<a href="{{ card.post.permalink|comment_anchor(cid) }}">[{{ loop.index }}]</a>{% endfor %}</span>
+      </li>
+      {% endfor %}
+    </ul>
+
+    {% if card.synthesis.contrarian_takes %}
+    <h4>Contrarian takes</h4>
+    <ul>
+      {% for take in card.synthesis.contrarian_takes %}
+      <li>{{ take.text }}
+        <a class="cids" href="{{ card.post.permalink|comment_anchor(take.comment_id) }}">[source]</a></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    <p class="muted">Vocabulary: {{ card.synthesis.audience_vocabulary|join(', ') }}</p>
+    {% else %}
+    <p class="muted">No synthesis available for this thread (analysis item failed).</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+  <!-- 6. Appendix -->
+  <h2>Appendix: fetch log</h2>
+  <div class="panel">
+    <table>
+      <thead><tr><th>Event</th><th>Tier</th><th>Count</th></tr></thead>
+      <tbody>
+      {% for row in fetch_log %}
+        <tr><td>{{ row.event }}</td><td>{{ row.tier }}</td><td>{{ row.n }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% if failed_rows %}
+    <h3>Failed rows</h3>
+    <table>
+      <thead><tr><th>URL</th><th>Status</th></tr></thead>
+      <tbody>
+      {% for row in failed_rows %}
+        <tr><td>{{ row.raw_url }}</td><td>{{ row.status }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+
+  <p class="muted">Every metric in this report was computed by the pipeline from stored
+    comments. LLM output supplies interpretation and grouping only, and every citation
+    links to a stored source comment.</p>
+</main>
+
+<script>
+(function () {
+  var table = document.getElementById("qbank");
+  if (!table) return;
+  var dir = {};
+  table.querySelectorAll("th").forEach(function (th) {
+    th.addEventListener("click", function () {
+      var k = +th.dataset.k, num = th.hasAttribute("data-num");
+      dir[k] = -(dir[k] || (num ? 1 : -1));
+      var rows = Array.prototype.slice.call(table.tBodies[0].rows);
+      rows.sort(function (a, b) {
+        var x = a.cells[k].textContent.trim(), y = b.cells[k].textContent.trim();
+        if (num) { return (parseFloat(y) - parseFloat(x)) * dir[k]; }
+        return x.localeCompare(y) * dir[k];
+      });
+      rows.forEach(function (r) { table.tBodies[0].appendChild(r); });
+    });
+  });
+})();
+</script>
+</body>
+</html>

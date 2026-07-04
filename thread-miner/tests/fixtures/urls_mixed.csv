@@ -1,0 +1,13 @@
+url,topic,note
+https://www.reddit.com/r/python/comments/1abc01/some_title/,dev tools,plain www host
+https://old.reddit.com/r/python/comments/1abc02/title_two/,dev tools,old host
+https://np.reddit.com/r/learnpython/comments/1abc03/title_three/,learning,np host
+https://m.reddit.com/r/flask/comments/1abc04/title_four/,dev tools,mobile host
+https://redd.it/1abc05,learning,shortlink
+https://www.reddit.com/r/python/s/AbCdEfGh12,dev tools,mobile share link
+https://www.reddit.com/r/python/comments/1abc06/title_six/mno1234/,dev tools,comment permalink
+https://www.reddit.com/r/python/comments/1abc07/title_seven/?utm_source=share&utm_medium=web2x,learning,query params
+https://www.reddit.com/r/python/comments/1abc08/dup_thread/,dev tools,duplicate pair first
+https://old.reddit.com/r/python/comments/1abc08/dup_thread_alt/,dev tools,duplicate pair second
+https://example.com/not/a/reddit/link,junk,invalid URL
+https://www.reddit.com/r/python/comments/404dead/removed_post/,learning,valid form but 404s at fetch

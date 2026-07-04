@@ -1,0 +1,26 @@
+# Thread Miner configuration. Secrets live in .env, never here.
+
+thresholds:
+  CLIENT_QPM: 90              # Tier 1 client-side rate cap
+  MAX_MORE_CALLS: 50          # replace_more limit per thread (~5,000 collapsed stubs)
+  REFETCH_TTL_DAYS: 14        # skip re-fetch of posts newer than this unless --force
+  SHARE_RESOLVE_TIMEOUT: 10.0 # seconds, share-link redirect resolution
+  FETCH_RETRIES: 3            # attempts on 5xx/429, backoff 2/4/8s
+  TIER2_NAV_DELAY: [2.5, 4.5] # seconds, uniform random between navigations
+  TIER2_MAX_NAV: 40           # navigation ceiling per thread
+  TIER2_DEPTH_CAP: 8          # max continue-thread depth
+  MAX_COMMENTS_ANALYZED: 1500 # per thread, top-N by score (all stored regardless)
+  COMMENT_BODY_TRUNC: 1200    # chars per comment in LLM serialization
+  CHUNK_CHAR_LIMIT: 28000     # max serialized chars per extraction chunk
+  SYNC_THRESHOLD: 5           # threads; at or below, skip Batch API and call synchronously
+  BATCH_POLL_SECONDS: 60      # Batch API poll interval
+  SCHEMA_RETRY: 1             # validation-failure retries per request
+
+models:
+  extraction: claude-haiku-4-5
+  synthesis: claude-sonnet-4-6
+
+paths:
+  db: data/threadminer.db
+  raw_dir: data/raw
+  reports_dir: data/reports

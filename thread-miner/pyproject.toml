@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "thread-miner"
+version = "1.0.0"
+description = "Reddit discussion intelligence pipeline: spreadsheet of post URLs in, content research report out"
+requires-python = ">=3.11"
+dependencies = [
+    "praw",
+    "anthropic",
+    "pydantic>=2",
+    "pandas",
+    "openpyxl",
+    "beautifulsoup4",
+    "playwright",
+    "httpx",
+    "jinja2",
+    "streamlit",
+    "tenacity",
+    "pyyaml",
+    "click",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+tm = "thread_miner.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
