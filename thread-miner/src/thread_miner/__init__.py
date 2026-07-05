@@ -24,16 +24,23 @@ def load_config(path: str | Path = "config.yaml") -> dict[str, Any]:
 
 
 def load_env(env_path: str | Path = ".env") -> dict[str, str]:
-    """Read secrets from the process env, falling back to a local .env file."""
+    """Read secrets: the project's .env file wins over process env vars.
+
+    A machine may carry stale keys in its environment (set long ago by some
+    other tool); for a local project the .env sitting next to the code is
+    what the user intends, so it takes precedence.
+    """
     values: dict[str, str] = {}
-    env_file = Path(env_path)
-    if env_file.exists():
-        for line in env_file.read_text().splitlines():
-            line = line.strip()
-            if line and not line.startswith("#") and "=" in line:
-                key, _, val = line.partition("=")
-                values[key.strip()] = val.strip()
     for key in _ENV_KEYS:
         if os.environ.get(key):
             values[key] = os.environ[key]
+    env_file = Path(env_path)
+    if env_file.exists():
+        for line in env_file.read_text(encoding="utf-8-sig").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, _, val = line.partition("=")
+                val = val.strip().strip('"').strip("'")
+                if val:
+                    values[key.strip()] = val
     return values
