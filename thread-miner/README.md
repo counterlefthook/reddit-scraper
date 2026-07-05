@@ -74,14 +74,54 @@ Outputs land in `data/reports/{run_id}/`:
 - `question_bank.csv`: canonical questions ranked by
   `members x (1 + log10(1 + total member score))`.
 
-### Local web UI
+### Local web UI (single user)
 
 ```bash
+pip install -e ".[local]"
 streamlit run app.py
 ```
 
 One page: upload the spreadsheet, pick the tag column, run, download the
 report and question bank, preview inline.
+
+## Hosted team web app
+
+A multi-user web app lives in `webapp/`: teammates log in with a shared
+password, upload a CSV/XLSX, the pipeline runs as a background job (survives
+closed tabs and container restarts), and the report + question bank are
+viewable and downloadable in the browser, with run history.
+
+Run it locally:
+
+```bash
+pip install -e ".[web]"
+APP_PASSWORD=pick-a-password SECRET_KEY=any-long-random-string \
+  uvicorn webapp.main:app --port 8000
+```
+
+(Windows PowerShell: `$env:APP_PASSWORD="pick-a-password"; $env:SECRET_KEY="any-long-random-string"; uvicorn webapp.main:app --port 8000`)
+
+### Deploy to Railway (~$5-10/month)
+
+1. Push this repository to GitHub.
+2. In [Railway](https://railway.app): **New Project → Deploy from GitHub repo**.
+   If the repo root is not `thread-miner/`, set the service's Root Directory
+   to `thread-miner`. The Dockerfile is detected automatically.
+3. Service → **Variables** — add:
+   `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET`, `REDDIT_USER_AGENT`,
+   `ANTHROPIC_API_KEY`, `APP_PASSWORD` (what the team types to log in),
+   `SECRET_KEY` (any long random string), `TIER2_ENABLED=false`.
+4. Service → **Volume** — mount path `/app/data` (holds the database, raw
+   thread archives, uploads, and reports across restarts and deploys).
+5. Settings → Networking → **Generate Domain**. Share the URL and the team
+   password. Keep replicas at 1 (SQLite requires a single writer).
+
+**Fetching from the cloud requires Reddit API credentials** (OAuth, Tier 1).
+Reddit blocks anonymous HTML scraping from datacenter IPs, so the Tier 2
+browser fallback is disabled on servers; `TIER2_ENABLED=true` is only for
+deployments on a residential IP (a home PC or homelab). Until your Reddit API
+access is approved, uploads will fail at the fetch stage with a message
+saying exactly that.
 
 ## Behavior notes
 

@@ -44,8 +44,15 @@ def _fetch_via_tier2(conn, cfg, post_fullname: str, permalink: str | None) -> bo
 
 
 def fetch_batch(conn, cfg, env, batch_id: str, force: bool = False,
-                tier2_only: bool = False) -> dict:
-    """Fetch every unique post in a batch. Returns a summary dict."""
+                tier2_only: bool = False, tier1_only: bool = False) -> dict:
+    """Fetch every unique post in a batch. Returns a summary dict.
+
+    tier1_only disables the Tier 2 fallback entirely - used by the hosted web
+    worker, where there is no Chromium and Reddit blocks datacenter HTML
+    scraping anyway, so falling through would just burn minutes per miss.
+    """
+    if tier2_only and tier1_only:
+        raise ValueError("tier2_only and tier1_only are mutually exclusive")
     thresholds = cfg["thresholds"]
     fullnames = db.batch_fullnames_to_fetch(
         conn, batch_id, thresholds["REFETCH_TTL_DAYS"], force
@@ -81,7 +88,7 @@ def fetch_batch(conn, cfg, env, batch_id: str, force: bool = False,
                 conn.commit()
                 continue
 
-        if not fetched:
+        if not fetched and not tier1_only:
             existing = db.get_post(conn, fullname)
             permalink = existing["permalink"] if existing else None
             if _fetch_via_tier2(conn, cfg, fullname, permalink):

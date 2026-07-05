@@ -7,7 +7,7 @@ import sys
 
 import click
 
-from . import db, load_config, load_env
+from . import PipelineError, db, load_config, load_env
 from .ingest import IngestError, batch_summary, ingest_file
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
@@ -96,9 +96,12 @@ def analyze(ctx, batch_id, resume_run_id, no_batch):
 
     cfg, conn = _open(ctx)
     env = _require_env(["ANTHROPIC_API_KEY"])
-    run_id = run_analysis(conn, cfg, env, batch_id,
-                          resume_run_id=resume_run_id, no_batch=no_batch)
-    run_rollup(conn, cfg, env, run_id)
+    try:
+        run_id = run_analysis(conn, cfg, env, batch_id,
+                              resume_run_id=resume_run_id, no_batch=no_batch)
+        run_rollup(conn, cfg, env, run_id)
+    except PipelineError as exc:
+        raise SystemExit(f"error: {exc}")
     click.echo(f"run_id: {run_id}")
 
 
@@ -110,7 +113,10 @@ def report(ctx, run_id):
     from .report import render_report
 
     cfg, conn = _open(ctx)
-    path = render_report(conn, cfg, run_id)
+    try:
+        path = render_report(conn, cfg, run_id)
+    except PipelineError as exc:
+        raise SystemExit(f"error: {exc}")
     click.echo(f"report: {path}")
     click.echo(f"question bank: {path.parent / 'question_bank.csv'}")
 
@@ -139,9 +145,12 @@ def run(ctx, file, tag_col):
     if not summary["fetched"]:
         raise SystemExit("no threads fetched; aborting before analysis")
 
-    run_id = run_analysis(conn, cfg, env, batch_id)
-    run_rollup(conn, cfg, env, run_id)
-    path = render_report(conn, cfg, run_id)
+    try:
+        run_id = run_analysis(conn, cfg, env, batch_id)
+        run_rollup(conn, cfg, env, run_id)
+        path = render_report(conn, cfg, run_id)
+    except PipelineError as exc:
+        raise SystemExit(f"error: {exc}")
     click.echo(f"run_id: {run_id}")
     click.echo(f"report: {path}")
 

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Run {{ job.job_id }} - Thread Miner{% endblock %}
+{% block content %}
+<div class="card" id="progressCard" data-job="{{ job.job_id }}">
+  <h1>{{ job.source_filename }}</h1>
+  <p class="muted">Started by {{ job.created_by }} · {{ job.created_at.replace("T", " ").replace("Z", "") }}
+    · <a href="/">← all runs</a></p>
+
+  <div class="progress-track"><div class="progress-fill" id="bar" style="width: 0%"></div></div>
+  <p id="statusLine">Loading status…</p>
+  <p class="error" id="errorLine" hidden></p>
+  <ul class="feed muted" id="feed"></ul>
+
+  <div id="doneActions" hidden>
+    <a class="btn" href="/jobs/{{ job.job_id }}/report.html">⬇ Download report</a>
+    <a class="btn" href="/jobs/{{ job.job_id }}/question_bank.csv">⬇ Download question bank (.csv)</a>
+  </div>
+</div>
+
+<div class="card" id="reportCard" hidden>
+  <h2>Report</h2>
+  <iframe id="reportFrame" title="Report"></iframe>
+</div>
+
+<script src="/static/app.js"></script>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Log in - Thread Miner{% endblock %}
+{% block content %}
+<div class="card narrow">
+  <h1>Log in</h1>
+  <p class="muted">Reddit discussion research for the team. Upload a spreadsheet
+  of Reddit links; get back a report of what people are asking and saying.</p>
+  {% if not password_set %}
+  <p class="error">The server has no APP_PASSWORD configured, so logins are
+  disabled. Set the APP_PASSWORD environment variable and restart.</p>
+  {% endif %}
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  <form method="post" action="/login">
+    <label for="name">Your name</label>
+    <input id="name" name="name" required maxlength="60" placeholder="Chris">
+    <label for="password">Team password</label>
+    <input id="password" name="password" type="password" required>
+    <button type="submit">Log in</button>
+  </form>
+</div>
+{% endblock %}

@@ -12,7 +12,7 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from . import db, metrics
+from . import PipelineError, db, metrics
 from .rollup import group_posts_by_tag
 from .schemas import Rollup, ThreadSynthesis
 
@@ -90,7 +90,7 @@ def build_thread_cards(conn, run_id: str, batch_id: str, posts) -> list[dict]:
 def render_report(conn, cfg, run_id: str) -> Path:
     run = db.get_run(conn, run_id)
     if run is None:
-        raise SystemExit(f"unknown run id: {run_id}")
+        raise PipelineError(f"unknown run id: {run_id}")
     batch_id = run["batch_id"]
     batch = db.get_batch(conn, batch_id)
     posts = db.fetched_posts_for_batch(conn, batch_id)

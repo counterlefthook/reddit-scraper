@@ -13,6 +13,12 @@ __version__ = "1.0.0"
 _ENV_KEYS = ("REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET", "REDDIT_USER_AGENT", "ANTHROPIC_API_KEY")
 
 
+class PipelineError(Exception):
+    """A pipeline stage cannot proceed (bad id, no data). Callers decide how to
+    surface it: the CLI exits, the web worker marks the job failed. Never use
+    SystemExit inside pipeline code - it silently kills worker threads."""
+
+
 def load_config(path: str | Path = "config.yaml") -> dict[str, Any]:
     """Load config.yaml. Paths are resolved relative to the config file's directory."""
     path = Path(path)

@@ -111,6 +111,23 @@ CREATE TABLE IF NOT EXISTS rollups (
   run_id TEXT PRIMARY KEY,
   payload TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS jobs (
+  job_id TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL,
+  created_by TEXT NOT NULL,
+  source_filename TEXT NOT NULL,
+  upload_path TEXT NOT NULL,
+  tag_col TEXT NOT NULL DEFAULT 'tag',
+  status TEXT NOT NULL DEFAULT 'queued'
+    CHECK (status IN ('queued','running','done','failed')),
+  phase TEXT,
+  batch_id TEXT,
+  run_id TEXT,
+  error TEXT,
+  started_at TEXT,
+  finished_at TEXT
+);
 """
 
 
@@ -120,9 +137,16 @@ def now_iso() -> str:
 
 def connect(db_path: str | Path) -> sqlite3.Connection:
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(db_path)
+    # check_same_thread=False: FastAPI resolves dependencies and runs sync
+    # handlers on different threadpool threads. Each request/worker still gets
+    # its own connection; a single connection is never used concurrently.
+    conn = sqlite3.connect(db_path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    # WAL lets the web tier read progress while the worker thread writes;
+    # busy_timeout waits out the rare write/write overlap instead of erroring.
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA busy_timeout = 5000")
     conn.executescript(DDL)
     return conn
 
@@ -379,3 +403,74 @@ def get_batch(conn, batch_id: str):
     return conn.execute(
         "SELECT * FROM ingest_batches WHERE batch_id = ?", (batch_id,)
     ).fetchone()
+
+
+# ------------------------------------------------------------------ web jobs
+
+JOB_FIELDS = {"status", "phase", "batch_id", "run_id", "error",
+              "started_at", "finished_at"}
+
+
+def create_job(conn, job_id: str, created_by: str, source_filename: str,
+               upload_path: str, tag_col: str = "tag") -> None:
+    conn.execute(
+        "INSERT INTO jobs (job_id, created_at, created_by, source_filename, "
+        "upload_path, tag_col, status) VALUES (?, ?, ?, ?, ?, ?, 'queued')",
+        (job_id, now_iso(), created_by, source_filename, upload_path, tag_col),
+    )
+    conn.commit()
+
+
+def update_job(conn, job_id: str, **fields) -> None:
+    bad = set(fields) - JOB_FIELDS
+    if bad:
+        raise ValueError(f"unknown job fields: {bad}")
+    sets = ", ".join(f"{k} = ?" for k in fields)
+    conn.execute(f"UPDATE jobs SET {sets} WHERE job_id = ?",
+                 (*fields.values(), job_id))
+    conn.commit()
+
+
+def get_job(conn, job_id: str):
+    return conn.execute("SELECT * FROM jobs WHERE job_id = ?", (job_id,)).fetchone()
+
+
+def list_jobs(conn, limit: int = 50) -> list[sqlite3.Row]:
+    return conn.execute(
+        "SELECT * FROM jobs ORDER BY created_at DESC, job_id DESC LIMIT ?", (limit,)
+    ).fetchall()
+
+
+def claim_next_job(conn):
+    """Move the oldest queued job to running and return it (single worker)."""
+    row = conn.execute(
+        "SELECT * FROM jobs WHERE status = 'queued' ORDER BY created_at, job_id LIMIT 1"
+    ).fetchone()
+    if row is None:
+        return None
+    update_job(conn, row["job_id"], status="running", started_at=now_iso())
+    return get_job(conn, row["job_id"])
+
+
+def running_jobs(conn) -> list[sqlite3.Row]:
+    """Jobs interrupted mid-flight (e.g. container restart), oldest first."""
+    return conn.execute(
+        "SELECT * FROM jobs WHERE status = 'running' ORDER BY started_at, job_id"
+    ).fetchall()
+
+
+def batch_row_status_counts(conn, batch_id: str) -> dict[str, int]:
+    rows = conn.execute(
+        "SELECT status, COUNT(*) AS n FROM ingest_rows WHERE batch_id = ? GROUP BY status",
+        (batch_id,),
+    ).fetchall()
+    return {r["status"]: r["n"] for r in rows}
+
+
+def recent_fetch_events(conn, batch_id: str, limit: int = 10) -> list[sqlite3.Row]:
+    return conn.execute(
+        "SELECT f.post_fullname, f.tier, f.event, f.detail, f.at FROM fetch_log f "
+        "JOIN (SELECT DISTINCT post_fullname FROM ingest_rows WHERE batch_id = ?) b "
+        "ON f.post_fullname = b.post_fullname ORDER BY f.log_id DESC LIMIT ?",
+        (batch_id, limit),
+    ).fetchall()

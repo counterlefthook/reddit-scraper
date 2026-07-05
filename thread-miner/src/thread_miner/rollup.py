@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 
-from . import db, metrics
+from . import PipelineError, db, metrics
 from .analysis import LLMClient
 from .prompts import ROLLUP_PROMPT
 from .schemas import Rollup, ThreadSynthesis
@@ -63,7 +63,7 @@ def build_rollup_user_message(conn, cfg, run_id: str, batch_id: str, posts) -> s
 def run_rollup(conn, cfg, env, run_id: str) -> None:
     run = db.get_run(conn, run_id)
     if run is None:
-        raise SystemExit(f"unknown run id: {run_id}")
+        raise PipelineError(f"unknown run id: {run_id}")
     posts = db.fetched_posts_for_batch(conn, run["batch_id"])
     llm = LLMClient(env["ANTHROPIC_API_KEY"], cfg)
 

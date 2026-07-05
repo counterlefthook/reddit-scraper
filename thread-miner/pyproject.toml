@@ -14,10 +14,8 @@ dependencies = [
     "pandas",
     "openpyxl",
     "beautifulsoup4",
-    "playwright",
     "httpx",
     "jinja2",
-    "streamlit",
     "tenacity",
     "pyyaml",
     "click",
@@ -25,6 +23,10 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest"]
+# Local-machine extras: Tier 2 browser fallback + the single-user Streamlit UI.
+local = ["playwright", "streamlit"]
+# Hosted web app (Docker image installs exactly this).
+web = ["fastapi", "uvicorn[standard]", "python-multipart", "itsdangerous"]
 
 [project.scripts]
 tm = "thread_miner.cli:main"

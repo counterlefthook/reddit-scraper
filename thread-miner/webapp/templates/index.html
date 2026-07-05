@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h1>New research run</h1>
+  <p class="muted">Upload a <b>.csv</b> or <b>.xlsx</b> with a <code>url</code> column of
+  Reddit post links (an optional <code>tag</code> column groups threads in the report).
+  The analysis runs in the background; you can close the tab and come back.</p>
+  {% if upload_error %}<p class="error">{{ upload_error }}</p>{% endif %}
+  <form method="post" action="/jobs" enctype="multipart/form-data" class="upload">
+    <input type="file" name="file" accept=".csv,.xlsx,.xlsm" required>
+    <label class="inline">Tag column
+      <input name="tag_col" value="tag" size="8">
+    </label>
+    <button type="submit">Start analysis</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Run history</h2>
+  {% if jobs %}
+  <table>
+    <thead><tr><th>Started</th><th>By</th><th>File</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for job in jobs %}
+      <tr>
+        <td>{{ job.created_at.replace("T", " ").replace("Z", "") }}</td>
+        <td>{{ job.created_by }}</td>
+        <td>{{ job.source_filename }}</td>
+        <td><span class="chip {{ job.status }}">{{ job.status }}</span></td>
+        <td><a href="/jobs/{{ job.job_id }}">{% if job.status == 'done' %}View report{% else %}Details{% endif %}</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No runs yet. Upload a spreadsheet above to start the first one.</p>
+  {% endif %}
+</div>
+{% endblock %}

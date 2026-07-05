@@ -12,11 +12,12 @@ import json
 import logging
 import time
 import uuid
+from typing import Callable
 
 import anthropic
 from pydantic import ValidationError
 
-from . import db, metrics
+from . import PipelineError, db, metrics
 from .prompts import CHUNK_EXTRACTION_PROMPT, THREAD_SYNTHESIS_PROMPT
 from .schemas import ChunkExtraction, ThreadSynthesis
 from .serialize import serialize_thread
@@ -240,7 +241,8 @@ def sanitize_synthesis(synth: ThreadSynthesis, valid_ids: set[str]) -> ThreadSyn
 # --------------------------------------------------------------------- driver
 
 def run_analysis(conn, cfg, env, batch_id: str, resume_run_id: str | None = None,
-                 no_batch: bool = False) -> str:
+                 no_batch: bool = False,
+                 on_run_created: Callable[[str], None] | None = None) -> str:
     llm = LLMClient(env["ANTHROPIC_API_KEY"], cfg)
     extraction_model = cfg["models"]["extraction"]
     synthesis_model = cfg["models"]["synthesis"]
@@ -248,16 +250,20 @@ def run_analysis(conn, cfg, env, batch_id: str, resume_run_id: str | None = None
     if resume_run_id:
         run = db.get_run(conn, resume_run_id)
         if run is None:
-            raise SystemExit(f"unknown run id: {resume_run_id}")
+            raise PipelineError(f"unknown run id: {resume_run_id}")
         run_id, batch_id = run["run_id"], run["batch_id"]
     else:
         run_id = str(uuid.uuid4())
         db.create_run(conn, run_id, batch_id)
         run = db.get_run(conn, run_id)
+        if on_run_created:
+            # Lets the web worker persist the run id before the long stages,
+            # so a container restart can resume instead of starting over.
+            on_run_created(run_id)
 
     posts = db.fetched_posts_for_batch(conn, batch_id)
     if not posts:
-        raise SystemExit("no fetched posts in this batch; run `tm fetch` first")
+        raise PipelineError("no fetched posts in this batch; run the fetch stage first")
     use_batch = len(posts) > cfg["thresholds"]["SYNC_THRESHOLD"] and not no_batch
     stage = run["stage"]
 
